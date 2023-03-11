@@ -1,11 +1,13 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "capture.h"
+#include "baidu_face.h"
 #include "config.h"
 
 
 static MainWindow *mainwindow;
 
+extern face_detect_info_t new_detect_info;
 
 /*  将jpge/mjpge格式转换为QImage */
 QImage jpeg_to_QImage(unsigned char *data, int len)
@@ -64,8 +66,15 @@ void MainWindow::window_display(void)
     if(ret > 0 && ret != old_frame_index)
     {
         old_frame_index = ret;
-        qDebug() << "frame index " << ret;
+        //qDebug() << "frame index " << ret;
         videoQImage = jpeg_to_QImage(videobuf, frame_len);
+
+        if(new_detect_info.face_num > 0)
+        {
+            QPainter painter(&videoQImage);
+            painter.setPen(QPen(Qt::green, 3, Qt::SolidLine, Qt::RoundCap));
+            painter.drawRect(new_detect_info.locat[0].x, new_detect_info.locat[0].y, new_detect_info.locat[0].w, new_detect_info.locat[0].h);
+        }
 
         // 显示一帧图像
         ui->videoLab->setPixmap(QPixmap::fromImage(videoQImage));

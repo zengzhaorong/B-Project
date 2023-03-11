@@ -21,6 +21,12 @@ typedef signed char 		int8_t;
 #define DEFAULT_CAPTURE_WIDTH		640
 #define DEFAULT_CAPTURE_HEIGH		480
 #define FRAME_BUF_SIZE		(DEFAULT_CAPTURE_WIDTH *DEFAULT_CAPTURE_HEIGH *3)
+#define IMAGE_BASE64_SIZE   ((FRAME_BUF_SIZE/3+1)*4)
+
+// [BAIDU AI]
+#define BAIDU_API_KEY       "osdH6GrOh2dCDDZSjLfnI4Rl"
+#define BAIDU_SECRET_KEY    "u8FTpnjWYkeLGyghYfcnfNvjiPfEW6AG"
+
 
 
 #endif // CONFIG_H
