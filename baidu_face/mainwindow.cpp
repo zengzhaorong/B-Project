@@ -7,7 +7,6 @@
 
 static MainWindow *mainwindow;
 
-extern face_detect_info_t new_detect_info;
 
 /*  将jpge/mjpge格式转换为QImage */
 QImage jpeg_to_QImage(unsigned char *data, int len)
@@ -54,7 +53,9 @@ MainWindow::~MainWindow()
 
 void MainWindow::window_display(void)
 {
+    static face_location_t location[MAX_FACE_NUM];
     static int old_frame_index = 0;
+    static int face_num = 0;
     QImage videoQImage;
     int frame_len = 0;
     int ret;
@@ -69,11 +70,25 @@ void MainWindow::window_display(void)
         //qDebug() << "frame index " << ret;
         videoQImage = jpeg_to_QImage(videobuf, frame_len);
 
-        if(new_detect_info.face_num > 0)
+        // 在图像中，框出人脸
+        ret = face_get_detect_info(location, MAX_FACE_NUM);
+        if(ret > 0)
         {
-            QPainter painter(&videoQImage);
-            painter.setPen(QPen(Qt::green, 3, Qt::SolidLine, Qt::RoundCap));
-            painter.drawRect(new_detect_info.locat[0].x, new_detect_info.locat[0].y, new_detect_info.locat[0].w, new_detect_info.locat[0].h);
+            face_num = ret;
+            face_rect_delay = 0;
+            face_clear_detect_info();   // 清除检测的人脸
+        }
+
+        if(face_rect_delay < FACE_RECT_DELAY_TIME)
+        {
+            for(int i=0; i<face_num; i++)
+            {
+                QPainter painter(&videoQImage);
+                painter.setPen(QPen(Qt::green, 3, Qt::SolidLine, Qt::RoundCap));
+                painter.drawRect(location[0].x, location[0].y, location[0].w, location[0].h);
+            }
+            face_rect_delay ++;
+            printf("face[%d], %d\n", face_num, face_rect_delay);
         }
 
         // 显示一帧图像
@@ -81,10 +96,68 @@ void MainWindow::window_display(void)
         ui->videoLab->show();
     }
 
-
     display_timer->start(TIMER_DISPLAY_INTERV_MS);
 }
 
+
+
+void MainWindow::on_addUserBtn_clicked()
+{
+    QString str_id;
+    QString str_name;
+    QString str_user;
+    int id;
+    char name[32] = {0};
+
+    str_id = ui->userIdEdit->text();
+    str_name = ui->userNameEdit->text();
+    if(str_id.length()<=0 || str_name.length()<=0)
+    {
+        qDebug() << "user id or name is null!";
+        return ;
+    }
+
+    // toLocal8Bit(): Unicode编码
+    id = atoi(str_id.toLocal8Bit().data());
+    if(id <= 0)
+    {
+        qDebug() << "user id is illegal!";
+        return ;
+    }
+
+    strcpy(name, str_name.toLocal8Bit().data());
+
+    str_user = str_id + QString(", ") +str_name;
+    qDebug() << "user: " << str_user;
+
+    ui->userListBox->addItem(str_user);
+
+}
+
+void MainWindow::on_delUserBtn_clicked()
+{
+    QString str_user;
+    int index;
+    int id;
+
+    str_user = ui->userListBox->currentText();
+    if(str_user.length() <= 0)
+    {
+        qDebug() << "user is null!";
+        return ;
+    }
+
+    id = atoi(str_user.toLocal8Bit().data());
+    qDebug() << "del car user: " << str_user << ", id: " << id;
+
+    index = ui->userListBox->currentIndex();
+    ui->userListBox->removeItem(index);
+}
+
+void MainWindow::on_historyBtn_clicked()
+{
+
+}
 
 /* main window initial - 主界面初始化 */
 int mainwindow_init(void)
@@ -95,5 +168,4 @@ int mainwindow_init(void)
 
     return 0;
 }
-
 

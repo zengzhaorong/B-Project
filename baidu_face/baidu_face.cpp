@@ -19,8 +19,52 @@ std::string baidu_access_token;
 const static std::string access_token_url = "https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials";
 const static std::string face_detect_url = "https://aip.baidubce.com/rest/2.0/face/v3/detect";
 
-face_detect_info_t new_detect_info = {0};
+static face_detect_info_t new_detect_info;
 
+int face_set_detect_info(face_location_t *locat_array, int face_num)
+{
+    face_detect_info_t *detect = &new_detect_info;
+    int i, j;
+
+    for(i=0, j=0; i<face_num; i++)
+    {
+        if(locat_array[i].w < MIN_FACE_PIXEL || locat_array[i].h < MIN_FACE_PIXEL)
+        {
+            printf("face[%d] too samll, ignore ...\n", i);
+            continue;
+        }
+
+        detect->locat[j] = locat_array[i];
+        j++;
+    }
+    detect->face_num = j;
+
+    return 0;
+}
+
+/* >0 人脸数量，<=0 失败，无人脸 */
+int face_get_detect_info(face_location_t *locat_array, int array_size)
+{
+    int face_num = new_detect_info.face_num;
+
+    if(new_detect_info.face_num <= 0)
+        return -1;
+
+    if(array_size < new_detect_info.face_num)
+        face_num = array_size;
+
+    for(int i=0; i<face_num; i++)
+    {
+        locat_array[i] = new_detect_info.locat[i];
+    }
+
+    return face_num;
+}
+
+void face_clear_detect_info(void)
+{
+    new_detect_info.face_num = 0;
+}
 
 /**
  * curl发送http请求调用的回调函数，回调函数中对返回的json格式的body进行了解析，解析结果储存在result中
@@ -50,6 +94,7 @@ static size_t _face_decect_cb(void *ptr, size_t size, size_t nmemb, void *stream
     Json::Reader reader;
     Json::Value root;
 
+    //cout << detect_result << endl;
     reader.parse(detect_result, root);
     err_code = root["error_code"].asString();
 
@@ -196,6 +241,7 @@ unsigned char image_base64[IMAGE_BASE64_SIZE];
 
 void *baidu_face_thread(void *arg)
 {
+    face_detect_info_t detect_info;
     static int old_frame_index = 0;
     int image_len;
     int base64_len;
@@ -210,6 +256,7 @@ void *baidu_face_thread(void *arg)
         ret = capture_get_newframe((unsigned char *)image_data, FRAME_BUF_SIZE, &image_len);
         if(ret <=0 || ret == old_frame_index)
         {
+            //printf("%s: no new frame.\n", __FUNCTION__);
             usleep(100 *1000);
             continue;
         }
@@ -217,11 +264,16 @@ void *baidu_face_thread(void *arg)
 
         base64_encode(image_data, image_len, image_base64, &base64_len);
 
-        ret = baidu_face_detect(&new_detect_info, baidu_access_token, (char *)image_base64);
-        if(ret==0 && new_detect_info.face_num>0)
+        //printf("detect begin ...\n");
+        ret = baidu_face_detect(&detect_info, baidu_access_token, (char *)image_base64);
+        //printf("detect over, face num: %d\n", detect_info.face_num);
+        if(ret==0 && detect_info.face_num>0)
         {
-            face_location_t *loca = &new_detect_info.locat[0];
-            printf("face: x=%d, y=%d, w=%d, h=%d\n", loca->x, loca->y, loca->w, loca->h);
+            face_set_detect_info(detect_info.locat, detect_info.face_num);
+            for(int i=0; i<detect_info.face_num; i++)
+            {
+                printf("face[%d]: x=%d, y=%d, w=%d, h=%d\n", i, detect_info.locat[0].x, detect_info.locat[0].y, detect_info.locat[0].w, detect_info.locat[0].h);
+            }
             //printf("baidu detect face succeess.\n");
         }
 
