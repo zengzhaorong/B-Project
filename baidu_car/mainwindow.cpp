@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "baidu_car.h"
 #include "capture.h"
 #include "config.h"
 
@@ -66,6 +67,13 @@ void MainWindow::window_display(void)
         old_frame_index = ret;
         //qDebug() << "frame index " << ret;
         videoQImage = jpeg_to_QImage(videobuf, frame_len);
+
+        license_plate_info_t license_info;
+        ret = car_get_license_info(&license_info);
+        if(ret == 0)
+        {
+            ui->licenseLab->setText(license_info.license);
+        }
 
         // 显示一帧图像
         ui->videoLab->setPixmap(QPixmap::fromImage(videoQImage));

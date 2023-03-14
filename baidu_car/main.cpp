@@ -2,6 +2,7 @@
 #include <QApplication>
 #include <unistd.h>
 #include "capture.h"
+#include "baidu_car.h"
 
 int main(int argc, char *argv[])
 {
@@ -17,6 +18,8 @@ int main(int argc, char *argv[])
 
     sleep(1);	// only to show background image
     start_capture_task();
+
+    start_baidu_car_task();
 
     return a.exec();
 }

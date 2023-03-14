@@ -16,17 +16,29 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    baidu_car.cpp \
+    base64.cpp \
     capture.cpp \
+    json/jsoncpp.cpp \
     main.cpp \
     mainwindow.cpp
 
 HEADERS += \
+    baidu_car.h \
+    base64.h \
     capture.h \
     config.h \
+    json/json.h \
     mainwindow.h
 
 FORMS += \
     mainwindow.ui
+
+CURL_LIB_PATH = /usr/local/curl
+
+INCLUDEPATH += $${CURL_LIB_PATH}/include
+
+LIBS += -L$${CURL_LIB_PATH}/lib/ -lcurl
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
