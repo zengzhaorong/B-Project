@@ -46,31 +46,12 @@ void car_clear_license_info(void)
     g_license_valid = 0;
 }
 
-/**
- * curl发送http请求调用的回调函数，回调函数中对返回的json格式的body进行了解析，解析结果储存在result中
- * @param 参数定义见libcurl库文档
- * @return 返回值定义见libcurl库文档
- */
-static size_t _access_token_cb(void *ptr, size_t size, size_t nmemb, void *stream)
-{
-    // 获取到的body存放在ptr中，先将其转换为string格式
-    std::string s((char *) ptr, size * nmemb);
-    //cout << "recv: " << s << endl;
-
-    Json::Reader reader;
-    Json::Value root;
-    // 使用boost库解析json
-    reader.parse(s,root);
-    std::string *access_token_result = static_cast<std::string*>(stream);
-    *access_token_result = root["access_token"].asString();
-    return size * nmemb;
-}
-
-static size_t _license_plate_cb(void * buffer, size_t size, size_t nmemb, void * userp)
+/* https响应接收数据 */
+inline size_t onWriteData(void * buffer, size_t size, size_t nmemb, void * userp)
 {
     std::string * str = dynamic_cast<std::string *>((std::string *)userp);
     str->append((char *)buffer, size * nmemb);
-    return size * nmemb;
+    return nmemb;
 }
 
 int baidu_parse_license(const std::string detect_result, license_plate_info_t *license_info)
@@ -102,6 +83,31 @@ int baidu_parse_license(const std::string detect_result, license_plate_info_t *l
     return 0;
 }
 
+static int json_parse_access_token(std::string json_str, std::string &access_token)
+{
+    // 开始获取json中的access token项目
+    Json::Reader reader;
+    Json::Value root;
+    Json::Value json_access_token;
+    bool bret;
+
+    // 使用boost库解析json
+    bret = reader.parse(json_str, root);
+    if(!bret)
+    {
+        cout << "ERROR: parse json error!" << endl;
+        return -1;
+    }
+
+    json_access_token = root["access_token"];
+    if(json_access_token.isNull())
+        return -1;
+
+    access_token = json_access_token.asString();
+
+    return 0;
+}
+
 /**
  * 用以获取access_token的函数，使用时需要先在百度云控制台申请相应功能的应用，获得对应的API Key和Secret Key
  * @param access_token 获取得到的access token，调用函数时需传入该参数
@@ -111,33 +117,41 @@ int baidu_parse_license(const std::string detect_result, license_plate_info_t *l
  */
 int baidu_get_access_token(std::string &access_token, const std::string &AK, const std::string &SK)
 {
+    std::string access_token_str;
     CURL *curl;
     CURLcode result_code;
-    int error_code = 0;
+    int error_code = -1;
+
     curl = curl_easy_init();
-    if (curl) {
+    if (curl)
+    {
         std::string url = access_token_url + "&client_id=" + AK + "&client_secret=" + SK;
-        curl_easy_setopt(curl, CURLOPT_URL, url.data());
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0);
         std::string access_token_result;
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &access_token_result);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _access_token_cb);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &access_token_str);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, onWriteData);
         result_code = curl_easy_perform(curl);
-        if (result_code != CURLE_OK) {
+        if (result_code != CURLE_OK)
+        {
             fprintf(stderr, "curl_easy_perform() failed: %s\n",
                     curl_easy_strerror(result_code));
-            return 1;
+            return -1;
         }
-        access_token = access_token_result;
+
+        json_parse_access_token(access_token_str, access_token);
+
         cout << "access token: " << access_token << endl;
 
         curl_easy_cleanup(curl);
         error_code = 0;
-    } else {
+    } else
+    {
         fprintf(stderr, "curl_easy_init() failed.");
-        error_code = 1;
+        error_code = -1;
     }
+
     return error_code;
 }
 
@@ -167,7 +181,7 @@ int baidu_license_plate_recogn(license_plate_info_t *license_info, const std::st
 
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, image_urlEncode.c_str());
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &plate_result);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _license_plate_cb);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, onWriteData);
         res = curl_easy_perform(curl);
         if(res != CURLE_OK)
         {
@@ -194,7 +208,7 @@ int baidu_car_init(void)
     int ret;
 
     ret = baidu_get_access_token(baidu_access_token, BAIDU_API_KEY, BAIDU_SECRET_KEY);
-    if(ret != CURLE_OK)
+    if(ret != 0)
     {
         printf("%s failed!\n", __FUNCTION__);
         return -1;
@@ -239,7 +253,7 @@ void *baidu_car_thread(void *arg)
 
         car_set_license_info(&license_info);
 
-        sleep(1);
+        sleep(3);
     }
 
     return NULL;

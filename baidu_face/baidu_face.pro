@@ -1,4 +1,4 @@
-QT       += core gui
+QT       += core gui sql
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -21,7 +21,8 @@ SOURCES += \
     capture.cpp \
     json/jsoncpp.cpp \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    user_db.cpp
 
 HEADERS += \
     baidu_face.h \
@@ -30,7 +31,8 @@ HEADERS += \
     config.h \
     json/json-forwards.h \
     json/json.h \
-    mainwindow.h
+    mainwindow.h \
+    user_db.h
 
 FORMS += \
     mainwindow.ui

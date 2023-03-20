@@ -2,6 +2,7 @@
 #include "ui_mainwindow.h"
 #include "capture.h"
 #include "baidu_face.h"
+#include "user_db.h"
 #include "config.h"
 
 
@@ -39,6 +40,10 @@ MainWindow::MainWindow(QWidget *parent)
     QImage image;
     image.load(BACKGROUND_IMAGE);
     ui->videoLab->setPixmap(QPixmap::fromImage(image));
+
+    user_db_init(sql_db);
+
+    face_rect_delay = FACE_RECT_DELAY_TIME;
 
     display_timer = new QTimer(this);
     connect(display_timer, SIGNAL(timeout()), this, SLOT(window_display()));
